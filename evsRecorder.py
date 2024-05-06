@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from evsGrabber import camera_controller
 
 def stop_recording():
@@ -6,7 +7,12 @@ def stop_recording():
     if camera_controller.device.get_i_events_stream():
         camera_controller.device.get_i_events_stream().stop_log_raw_data()
 
-def start_recording(file_path):
+def get_timestamped_filename():
+    # 現在の日時を取得し、ファイル名に適した形式で返す
+    return datetime.now().strftime("recording_%Y%m%d_%H%M%S.raw")
+
+def start_recording():
+    file_path = get_timestamped_filename()  # ファイル名に日時を追加
     # デバイスが生データストリームをサポートしているか確認
     if camera_controller.device.get_i_events_stream():
         # 生データの記録を開始
@@ -21,11 +27,5 @@ def start_recording(file_path):
         # 記録を停止
         stop_recording()
 
-def stop_recording():
-    if camera_controller.device.get_i_events_stream():
-        camera_controller.device.get_i_events_stream().stop_log_raw_data()
-
 if __name__ == "__main__":
-    # 仮のファイルパスを設定
-    file_path = "path_to_your_raw_data_file.raw"
-    start_recording(file_path)
+    start_recording()
