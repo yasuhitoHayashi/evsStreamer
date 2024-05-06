@@ -5,7 +5,7 @@ from metavision_core.event_io import EventsIterator
 from metavision_sdk_core import PeriodicFrameGenerationAlgorithm
 from collections import deque
 
-app = Flask(__name__)
+app = Flask(__name__) # Flaskクラスのインスタンス作成、appへ代入
 frame_queue = deque(maxlen=1)  # Store the latest frame
 
 # カメラ設定の初期値とグローバル変数
