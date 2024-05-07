@@ -30,10 +30,14 @@ def video_feed():
 @app.route('/update_settings', methods=['POST'])
 def update_settings():
     content = request.json
-    camera_settings["bias_diff_on"] = content.get('bias_diff_on', camera_settings["bias_diff_on"])
-    camera_settings["bias_diff_off"] = content.get('bias_diff_off', camera_settings["bias_diff_off"])
+    new_bias_diff_on = content.get('bias_diff_on')
+    new_bias_diff_off = content.get('bias_diff_off')
 
-    return jsonify(success=True, message="Camera settings updated.")
+    if new_bias_diff_on is not None and new_bias_diff_off is not None:
+        camera_controller.update_settings(bias_diff_on=new_bias_diff_on, bias_diff_off=new_bias_diff_off)
+        return jsonify(success=True, message="Camera settings updated.")
+    else:
+        return jsonify(success=False, message="Invalid settings received.")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

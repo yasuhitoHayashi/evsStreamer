@@ -13,9 +13,12 @@ def save_uploaded_file(uploaded_file, path):
     except Exception as e:
         return False, str(e)
 
-def generate_schedule(start_time, interval_minutes, duration_hours, file_duration_minutes):
+def clear_seconds(dt):
+    """秒以下を切り捨てたdatetimeオブジェクトを返す"""
+    return dt.replace(second=0, microsecond=0)
+
+def generate_schedule(start_time, end_time, interval_minutes, file_duration_minutes):
     schedule = []
-    end_time = start_time + timedelta(hours=duration_hours)
     current_time = start_time
     while current_time < end_time:
         schedule.append(current_time.strftime('%Y-%m-%d %H:%M:%S'))
@@ -52,23 +55,36 @@ def main():
             st.error("Failed to update settings.")
 
     st.header("Schedule Recording")
-    start_datetime = st.text_input("Enter start datetime (YYYY-MM-DD HH:MM:SS):")
+    # 現在の日時を基準に、選択可能な最小日時と最大日時を設定
+    now = clear_seconds(datetime.now())
+    max_date = now + timedelta(days=10)  # 未来30日間を選択範囲として設定
+
+    # 日時スライダーで撮影開始日時を設定
+    recording_range = st.slider(
+        "Select start and end datetime for recording:",
+        now, max_date, (now,max_date),
+        format = 'Y-M-d H:m',
+        step=timedelta(hours=1))
+
+    start_datetime = st.text_input("Set exact start datetime", recording_range[0].strftime('%Y-%m-%d %H:%M'))
+    end_datetime = st.text_input("Set exact end datetime", recording_range[1].strftime('%Y-%m-%d %H:%M'))
+
+    start_datetime = recording_range[0]
+    end_datetime = recording_range[1]
+
+    # 撮影間隔を分単位で設定
     interval_minutes = st.number_input("Interval between recordings (minutes):", min_value=1, value=30)
-    duration_hours = st.number_input("Total duration of recording (hours):", min_value=1, value=2)
-    file_duration_minutes = st.number_input("Duration of each recording file (minutes):", min_value=1, value=10)
     
+    # 各撮影ファイルの長さを分単位で設定
+    file_duration_minutes = st.number_input("Duration of each recording file (minutes):", min_value=1, value=10)
+
     if st.button("Generate Schedule"):
-        if start_datetime:
-            start_time = datetime.strptime(start_datetime, '%Y-%m-%d %H:%M:%S')
-            schedule = generate_schedule(start_time, interval_minutes, duration_hours, file_duration_minutes)
-            csv_file_path = "recording_schedule.csv"
-            write_schedule_to_csv(schedule, csv_file_path)
-            st.success("Schedule created successfully!")
-            # CSVファイルの内容を表示
-            st.write("Scheduled times:")
-            st.write(schedule)
-        else:
-            st.error("Please enter a valid start datetime.")
+        schedule = generate_schedule(start_datetime, end_datetime, interval_minutes, file_duration_minutes)
+        csv_file_path = "recording_schedule.csv"
+        write_schedule_to_csv(schedule, csv_file_path)
+        st.success("Schedule created successfully!")
+        st.write("Scheduled times:")
+        st.write(schedule)
 
 if __name__ == "__main__":
     main()
