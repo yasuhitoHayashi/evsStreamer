@@ -1,31 +1,43 @@
 import os
 from datetime import datetime
-from evsGrabber import camera_controller
-
-def stop_recording():
-    # 生データの記録がアクティブかどうかを確認して停止
-    if camera_controller.device.get_i_events_stream():
-        camera_controller.device.get_i_events_stream().stop_log_raw_data()
+from metavision_core.event_io.raw_reader import initiate_device
 
 def get_timestamped_filename():
     # 現在の日時を取得し、ファイル名に適した形式で返す
     return datetime.now().strftime("recording_%Y%m%d_%H%M%S.raw")
 
 def start_recording():
-    file_path = get_timestamped_filename()  # ファイル名に日時を追加
-    # デバイスが生データストリームをサポートしているか確認
-    if camera_controller.device.get_i_events_stream():
-        # 生データの記録を開始
-        camera_controller.device.get_i_events_stream().log_raw_data(file_path)
+    file_path = os.path.abspath(get_timestamped_filename())
+    device = initiate_device("")
+    events_stream = device.get_i_events_stream()
+    if events_stream is None:
+        raise RuntimeError("This camera does not support RAW event recording.")
 
-        # イベントを取得するためのイテレータを作成
-    mv_iterator = camera_controller.get_frame_generator().mv_iterator
+    events_stream.log_raw_data(file_path)
     try:
-        for evs in mv_iterator:
-            pass
+        events_stream.start()
+        print(f"Recording started: {file_path}")
+        print("Press Ctrl+C to stop recording.")
+
+        # Keep draining the RAW stream while I_EventsStream writes it to disk.
+        # EventsIterator is intentionally not used here: its time slicing is
+        # unnecessary for recording and can fail on short live-camera slices.
+        while True:
+            poll_result = events_stream.poll_buffer()
+            if poll_result < 0:
+                break
+            if poll_result > 0:
+                events_stream.get_latest_raw_data()
+    except KeyboardInterrupt:
+        print("Stopping recording...")
     finally:
-        # 記録を停止
-        stop_recording()
+        try:
+            events_stream.stop_log_raw_data()
+        finally:
+            events_stream.stop()
+
+    print(f"Recording saved: {file_path}")
+    return file_path
 
 if __name__ == "__main__":
     start_recording()
