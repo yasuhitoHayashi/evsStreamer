@@ -1,12 +1,20 @@
 import csv
 import schedule
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
+from pathlib import Path
 import subprocess
+import sys
+
+BASE_DIR = Path(__file__).resolve().parent
 
 def capture():
     # evsRecorder.pyを実行
-    subprocess.run(["python", "evsRecorder.py"], check=True)
+    subprocess.run(
+        [sys.executable, str(BASE_DIR / "evsRecorder.py")],
+        cwd=BASE_DIR,
+        check=True,
+    )
     print("Capture started at:", datetime.now())
 
 def schedule_captures(csv_path):
@@ -20,7 +28,7 @@ def schedule_captures(csv_path):
                 print("Scheduled capture at:", start_time)
 
 if __name__ == "__main__":
-    csv_path = 'RecordingSchedule.csv'
+    csv_path = BASE_DIR / "RecordingSchedule.csv"
     schedule_captures(csv_path)
 
     # メインループでスケジューラを実行

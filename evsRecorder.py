@@ -1,4 +1,6 @@
+import argparse
 import os
+import time
 from datetime import datetime
 from metavision_core.event_io.raw_reader import initiate_device
 
@@ -6,7 +8,7 @@ def get_timestamped_filename():
     # 現在の日時を取得し、ファイル名に適した形式で返す
     return datetime.now().strftime("recording_%Y%m%d_%H%M%S.raw")
 
-def start_recording():
+def start_recording(duration_minutes=None):
     file_path = os.path.abspath(get_timestamped_filename())
     device = initiate_device("")
     events_stream = device.get_i_events_stream()
@@ -17,12 +19,17 @@ def start_recording():
     try:
         events_stream.start()
         print(f"Recording started: {file_path}")
-        print("Press Ctrl+C to stop recording.")
+        if duration_minutes is None:
+            print("Press Ctrl+C to stop recording.")
+            deadline = None
+        else:
+            print(f"Recording will stop after {duration_minutes:g} minute(s).")
+            deadline = time.monotonic() + duration_minutes * 60
 
-        # Keep draining the RAW stream while I_EventsStream writes it to disk.
-        # EventsIterator is intentionally not used here: its time slicing is
-        # unnecessary for recording and can fail on short live-camera slices.
+        # RAWデータをファイルへ書き込むため、受信バッファを継続して取得する
         while True:
+            if deadline is not None and time.monotonic() >= deadline:
+                break
             poll_result = events_stream.poll_buffer()
             if poll_result < 0:
                 break
@@ -39,5 +46,22 @@ def start_recording():
     print(f"Recording saved: {file_path}")
     return file_path
 
+def positive_minutes(value):
+    minutes = float(value)
+    if minutes <= 0:
+        raise argparse.ArgumentTypeError("minutes must be greater than 0")
+    return minutes
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Record RAW events from the camera.")
+    parser.add_argument(
+        "-m",
+        "--minutes",
+        type=positive_minutes,
+        help="stop recording automatically after this many minutes",
+    )
+    return parser.parse_args()
+
 if __name__ == "__main__":
-    start_recording()
+    args = parse_args()
+    start_recording(args.minutes)
